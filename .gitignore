@@ -1,0 +1,28 @@
+# Node modules
+node_modules/
+
+# Cypress output
+cypress/videos/
+cypress/screenshots/
+
+# Cypress caches
+~/.cache/Cypress
+C:/Users/**/.cache/Cypress
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Mac files
+.DS_Store
+
+# Env files (secrets)
+.env
+.env.local
+.env.qa
+.env.stage
+
+# Temporary files
+*.tmp
+*.log

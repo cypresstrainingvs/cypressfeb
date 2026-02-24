@@ -1,0 +1,39 @@
+{
+  "baseUrl": "https://practicetestautomation.com",
+  "loginPage": {
+    "url": "/practice-test-login/",
+    "title": "Test Login"
+  },
+  "selectors": {
+    "usernameInput": "#username",
+    "passwordInput": "#password",
+    "submitButton": "#submit",
+    "errorMessage": "#error",
+    "successMessage": ".post-title",
+    "logoutLink": "a:contains('Log out')"
+  },
+  "validUser": {
+    "username": "student",
+    "password": "Password123",
+    "expectedSuccessText": "Logged In Successfully"
+  },
+  "invalidUser": {
+    "username": "incorrectUser",
+    "password": "incorrectPassword",
+    "expectedErrorText": "Your username is invalid!"
+  },
+  "invalidPassword": {
+    "username": "student",
+    "password": "wrongPassword",
+    "expectedErrorText": "Your password is invalid!"
+  },
+  "emptyCredentials": {
+    "username": "",
+    "password": "",
+    "expectedErrorText": "Your username is invalid!"
+  },
+  "timeouts": {
+    "defaultCommandTimeout": 10000,
+    "pageLoadTimeout": 30000
+  }
+}

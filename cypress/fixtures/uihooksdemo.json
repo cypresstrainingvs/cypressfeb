@@ -1,0 +1,16 @@
+{
+  "actionsPage": {
+    "url": "/commands/actions",
+    "emailInput": {
+      "selector": ".action-email",
+      "testValue": "qa.training@example.com"
+    },
+    "button": {
+      "text": "Click",
+      "popoverText": "Click to toggle popover"
+    }
+  },
+  "homePage": {
+    "url": "/"
+  }
+}

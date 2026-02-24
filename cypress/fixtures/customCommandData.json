@@ -1,0 +1,63 @@
+{
+  "users": {
+    "admin": {
+      "username": "student",
+      "password": "Password123",
+      "role": "admin",
+      "expectedWelcome": "Logged In Successfully"
+    },
+    "standard": {
+      "username": "student",
+      "password": "Password123",
+      "role": "standard",
+      "expectedWelcome": "Logged In Successfully"
+    },
+    "invalid": {
+      "username": "invalid_user",
+      "password": "wrong_password",
+      "role": "invalid",
+      "expectedError": "Your username is invalid!"
+    }
+  },
+  "loginPage": {
+    "url": "https://practicetestautomation.com/practice-test-login/",
+    "selectors": {
+      "usernameInput": "#username",
+      "passwordInput": "#password",
+      "submitButton": "#submit",
+      "successMessage": ".post-title",
+      "errorMessage": "#error",
+      "logoutButton": "a[href*='logout']"
+    }
+  },
+  "testSite": {
+    "baseUrl": "https://example.cypress.io",
+    "selectors": {
+      "queryingLink": "[data-cy='query-btn']",
+      "actionableButton": ".action-btn",
+      "inputField": "input[type='text']",
+      "dropdown": "select",
+      "checkbox": "input[type='checkbox']",
+      "radioButton": "input[type='radio']"
+    }
+  },
+  "formData": {
+    "contactForm": {
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "phone": "1234567890",
+      "message": "This is a test message for form submission."
+    },
+    "searchTerms": ["Cypress", "Testing", "Automation"]
+  },
+  "apiEndpoints": {
+    "posts": "https://jsonplaceholder.typicode.com/posts",
+    "users": "https://jsonplaceholder.typicode.com/users",
+    "comments": "https://jsonplaceholder.typicode.com/comments"
+  },
+  "timeouts": {
+    "short": 3000,
+    "medium": 5000,
+    "long": 10000
+  }
+}

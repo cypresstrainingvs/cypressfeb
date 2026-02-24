@@ -1,0 +1,60 @@
+{
+  "baseUrl": "https://example.cypress.io",
+  "assertionPage": {
+    "url": "/commands/assertions",
+    "title": "Assertions"
+  },
+  "tableSelector": ".assertion-table",
+  "linkSelector": ".navbar-nav .nav-item a",
+  "elements": {
+    "hiddenElement": ".hidden-element",
+    "visibleElement": ".visible-element",
+    "actionLink": ".action-link"
+  },
+  "testStrings": {
+    "expectedTitle": "Cypress.io",
+    "expectedSubstring": "cypress",
+    "partialText": "Table",
+    "fullText": "Cypress.io: Kitchen Sink"
+  },
+  "testNumbers": {
+    "positiveNumber": 42,
+    "negativeNumber": -10,
+    "decimalNumber": 3.14159,
+    "zeroNumber": 0,
+    "largeNumber": 1000000
+  },
+  "testArrays": {
+    "fruits": ["apple", "banana", "cherry", "date"],
+    "numbers": [1, 2, 3, 4, 5],
+    "emptyArray": [],
+    "mixedArray": [1, "two", true, null]
+  },
+  "testObjects": {
+    "user": {
+      "name": "John Doe",
+      "age": 30,
+      "email": "john@example.com",
+      "isActive": true,
+      "roles": ["admin", "user"]
+    },
+    "emptyObject": {},
+    "nestedObject": {
+      "level1": {
+        "level2": {
+          "level3": "deep value"
+        }
+      }
+    }
+  },
+  "cssProperties": {
+    "backgroundColor": "rgb(0, 128, 0)",
+    "fontSize": "14px",
+    "color": "rgb(255, 255, 255)"
+  },
+  "regexPatterns": {
+    "emailPattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+    "phonePattern": "^\\d{3}-\\d{3}-\\d{4}$",
+    "uuidPattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+  }
+}

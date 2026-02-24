@@ -1,0 +1,29 @@
+{
+  "waitTimes": {
+    "short": 500,
+    "medium": 1000,
+    "long": 2000,
+    "veryLong": 5000
+  },
+  "timeoutValues": {
+    "default": 4000,
+    "extended": 10000,
+    "short": 2000,
+    "ajax": 30000
+  },
+  "apiEndpoints": {
+    "posts": "https://jsonplaceholder.typicode.com/posts",
+    "users": "https://jsonplaceholder.typicode.com/users",
+    "comments": "https://jsonplaceholder.typicode.com/comments",
+    "slowEndpoint": "https://jsonplaceholder.typicode.com/posts/1"
+  },
+  "testData": {
+    "searchTerm": "Cypress",
+    "buttonText": "Submit",
+    "successMessage": "Operation completed successfully"
+  },
+  "retryConfig": {
+    "maxRetries": 3,
+    "retryInterval": 1000
+  }
+}

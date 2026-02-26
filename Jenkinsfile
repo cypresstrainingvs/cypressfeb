@@ -20,6 +20,37 @@
 pipeline {
     agent any
     
+    // Parameters allow you to choose spec file when building
+    parameters {
+        choice(
+            name: 'SPEC_FILE',
+            choices: [
+                'cypress/e2e/**/*.cy.js',
+                'cypress/e2e/Day4/*.cy.js',
+                'cypress/e2e/Day4/cicdparalllelexecexample.cy.js',
+                'cypress/e2e/Day3/*.cy.js',
+                'cypress/e2e/Day3/envvariable.cy.js',
+                'cypress/e2e/Day3/fileuploaddownload.cy.js',
+                'cypress/e2e/Day3/apitestingusingcypress.cy.js',
+                'cypress/e2e/Day2/*.cy.js',
+                'cypress/e2e/Day2/Login.cy.js',
+                'cypress/e2e/Day2/assertion.cy.js',
+                'cypress/e2e/Day2/customcommand.cy.js',
+                'cypress/e2e/Day2/apihooksdemo.cy.js',
+                'cypress/e2e/Day2/uihooksdemo.cy.js',
+                'cypress/e2e/Day2/jsonplaceholder-hooks.cy.js',
+                'cypress/e2e/Day2/handelingwaitamdtimeout.cy.js',
+                'CUSTOM'
+            ],
+            description: 'Select a spec file OR choose CUSTOM to enter multiple specs below'
+        )
+        string(
+            name: 'CUSTOM_SPECS',
+            defaultValue: '',
+            description: 'For multiple specs, enter comma-separated paths. Example: cypress/e2e/Day2/Login.cy.js,cypress/e2e/Day2/assertion.cy.js'
+        )
+    }
+    
     tools {
         nodejs 'NodeJS'  // Configure this in Jenkins Global Tool Configuration
     }
@@ -73,25 +104,19 @@ pipeline {
         
         stage('Run Cypress Tests') {
             steps {
-                echo 'Running Cypress tests...'
                 script {
-                    if (isUnix()) {
-                        sh 'npx cypress run --reporter mochawesome --reporter-options reportDir=cypress/reports/mochawesome,overwrite=false,html=true,json=true'
-                    } else {
-                        bat 'npx cypress run --reporter mochawesome --reporter-options reportDir=cypress/reports/mochawesome,overwrite=false,html=true,json=true'
+                    // Determine which specs to run
+                    def specsToRun = params.SPEC_FILE
+                    if (params.SPEC_FILE == 'CUSTOM' && params.CUSTOM_SPECS?.trim()) {
+                        specsToRun = params.CUSTOM_SPECS
                     }
-                }
-            }
-        }
-        
-        stage('Run Day 4 Tests Only') {
-            steps {
-                echo 'Running Day 4 CI/CD demo tests...'
-                script {
+                    
+                    echo "Running Cypress tests: ${specsToRun}"
+                    
                     if (isUnix()) {
-                        sh 'npx cypress run --spec "cypress/e2e/Day4/*.cy.js"'
+                        sh "npx cypress run --spec \"${specsToRun}\" --reporter mochawesome --reporter-options reportDir=cypress/reports/mochawesome,overwrite=false,html=true,json=true"
                     } else {
-                        bat 'npx cypress run --spec "cypress/e2e/Day4/*.cy.js"'
+                        bat "npx cypress run --spec \"${specsToRun}\" --reporter mochawesome --reporter-options reportDir=cypress/reports/mochawesome,overwrite=false,html=true,json=true"
                     }
                 }
             }

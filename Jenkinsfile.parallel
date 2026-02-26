@@ -1,0 +1,216 @@
+/*
+ * Jenkinsfile.parallel - Jenkins Pipeline with Parallel Cypress Execution
+ * ========================================================================
+ * 
+ * This file demonstrates parallel test execution in Jenkins.
+ * 
+ * How to use:
+ * 1. Copy this file to your project root as 'Jenkinsfile'
+ * 2. Configure Jenkins to use this pipeline
+ * 3. Tests will run in parallel across defined stages
+ * 
+ * Parallel Execution Methods:
+ * Method 1: Jenkins Parallel Stages (shown below)
+ * Method 2: Cypress Cloud with --parallel flag
+ * 
+ * Benefits:
+ * - Reduces total test execution time
+ * - Faster feedback on code changes
+ * - Better utilization of CI resources
+ */
+
+pipeline {
+  agent {
+    docker {
+      image 'cypress/included:13.6.3'
+      args '-u root:root'
+    }
+  }
+
+  options {
+    timestamps()
+    ansiColor('xterm')
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+    timeout(time: 45, unit: 'MINUTES')
+  }
+
+  environment {
+    CI = 'true'
+    BASE_URL = 'https://example.cypress.io'
+    CYPRESS_RECORD_KEY = credentials('cypress-record-key')  // Store in Jenkins credentials
+  }
+
+  stages {
+    
+    stage('Install') {
+      steps {
+        sh 'npm ci'
+      }
+    }
+
+    /*
+     * METHOD 1: Jenkins Parallel Stages
+     * ----------------------------------
+     * Split tests into groups and run them simultaneously.
+     * Each stage runs on the same agent but different specs.
+     */
+    stage('Run Tests in Parallel') {
+      parallel {
+        
+        stage('Smoke Tests') {
+          steps {
+            sh '''
+              npx cypress run \
+                --spec "cypress/e2e/Day4/*.cy.js" \
+                --reporter mochawesome \
+                --reporter-options reportDir=cypress/reports/smoke,overwrite=false,html=false,json=true
+            '''
+          }
+        }
+
+        stage('API Tests') {
+          steps {
+            sh '''
+              npx cypress run \
+                --spec "cypress/e2e/Day3/apitestingusingcypress.cy.js" \
+                --reporter mochawesome \
+                --reporter-options reportDir=cypress/reports/api,overwrite=false,html=false,json=true
+            '''
+          }
+        }
+
+        stage('UI Tests') {
+          steps {
+            sh '''
+              npx cypress run \
+                --spec "cypress/e2e/Day2/*.cy.js" \
+                --reporter mochawesome \
+                --reporter-options reportDir=cypress/reports/ui,overwrite=false,html=false,json=true
+            '''
+          }
+        }
+      }
+    }
+
+    /*
+     * METHOD 2: Cypress Cloud Parallelization
+     * ----------------------------------------
+     * Uncomment this stage to use Cypress Cloud instead.
+     * Cypress Cloud automatically balances test load across machines.
+     * 
+     * Prerequisites:
+     * - projectId in cypress.config.js
+     * - CYPRESS_RECORD_KEY environment variable
+     * - Multiple Jenkins agents (or matrix build)
+     */
+    /*
+    stage('Run with Cypress Cloud') {
+      parallel {
+        stage('Machine 1') {
+          steps {
+            sh 'npx cypress run --record --parallel --group "all-tests"'
+          }
+        }
+        stage('Machine 2') {
+          steps {
+            sh 'npx cypress run --record --parallel --group "all-tests"'
+          }
+        }
+        stage('Machine 3') {
+          steps {
+            sh 'npx cypress run --record --parallel --group "all-tests"'
+          }
+        }
+      }
+    }
+    */
+
+    stage('Merge Reports') {
+      steps {
+        sh '''
+          mkdir -p cypress/reports/combined
+          
+          # Find all JSON reports and merge them
+          find cypress/reports -name "*.json" -type f | head -20 | xargs cat > /dev/null 2>&1 || true
+          
+          # Merge if reports exist
+          if ls cypress/reports/*/*.json 1> /dev/null 2>&1; then
+            npx mochawesome-merge "cypress/reports/*/*.json" > cypress/reports/combined/merged.json
+            npx marge cypress/reports/combined/merged.json -o cypress/reports/combined --inline
+          fi
+        '''
+      }
+    }
+
+    stage('Publish Results') {
+      steps {
+        // Publish HTML report
+        publishHTML(target: [
+          reportDir: 'cypress/reports/combined',
+          reportFiles: 'mochawesome.html',
+          reportName: 'Cypress Test Report',
+          keepAll: true,
+          alwaysLinkToLastBuild: true,
+          allowMissing: true
+        ])
+        
+        // Archive artifacts
+        archiveArtifacts artifacts: 'cypress/videos/**', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'cypress/screenshots/**', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'cypress/reports/**', allowEmptyArchive: true
+      }
+    }
+  }
+
+  post {
+    success {
+      echo 'All parallel tests passed successfully'
+    }
+    failure {
+      echo 'Some tests failed - check the reports'
+    }
+    always {
+      echo 'Pipeline completed'
+    }
+  }
+}
+
+
+/*
+ * TRAINER NOTES - Jenkins Parallel Execution
+ * ==========================================
+ * 
+ * Key Concepts to Explain:
+ * 
+ * 1. Why Parallel Execution?
+ *    - 100 tests taking 30 minutes sequentially
+ *    - Split into 3 parallel groups = ~10 minutes each
+ *    - Total time reduced from 30 min to ~10 min
+ * 
+ * 2. Jenkins Parallel Stages:
+ *    - Easy to set up
+ *    - Each stage gets different specs
+ *    - Reports merged at the end
+ *    - Runs on same agent (limited parallelism)
+ * 
+ * 3. Cypress Cloud Parallelization:
+ *    - Smart load balancing
+ *    - Runs across multiple machines
+ *    - Automatically distributes specs
+ *    - Tracks historical test times
+ * 
+ * 4. When to Use Each:
+ *    - Small projects: Jenkins parallel stages
+ *    - Large projects: Cypress Cloud
+ *    - Enterprise: Cypress Cloud with multiple agents
+ * 
+ * 5. Best Practices:
+ *    - Keep tests independent
+ *    - Use unique test data per test
+ *    - Group similar tests together
+ *    - Monitor test times regularly
+ * 
+ * Commands to Demo:
+ *    Local parallel:   npx cypress run --spec "cypress/e2e/Day4/*.cy.js"
+ *    With recording:   npx cypress run --record --key $KEY --parallel
+ */

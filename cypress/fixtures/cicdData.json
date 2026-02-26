@@ -1,0 +1,51 @@
+{
+  "ciEnvironments": {
+    "jenkins": {
+      "name": "Jenkins",
+      "envVariable": "JENKINS_URL",
+      "description": "Open source automation server"
+    },
+    "github": {
+      "name": "GitHub Actions",
+      "envVariable": "GITHUB_ACTIONS",
+      "description": "GitHub integrated CI/CD"
+    },
+    "gitlab": {
+      "name": "GitLab CI",
+      "envVariable": "GITLAB_CI",
+      "description": "GitLab integrated CI/CD"
+    },
+    "azure": {
+      "name": "Azure DevOps",
+      "envVariable": "TF_BUILD",
+      "description": "Microsoft Azure CI/CD"
+    }
+  },
+  "parallelConfig": {
+    "totalMachines": 4,
+    "specGroups": {
+      "smoke": ["login.cy.js", "homepage.cy.js"],
+      "regression": ["api.cy.js", "forms.cy.js", "navigation.cy.js"],
+      "e2e": ["checkout.cy.js", "payment.cy.js"]
+    }
+  },
+  "cypressCloud": {
+    "projectId": "abc123",
+    "recordKey": "your-record-key-here",
+    "parallelEnabled": true
+  },
+  "testEndpoints": {
+    "healthCheck": "/api/health",
+    "users": "/users",
+    "posts": "/posts"
+  },
+  "apiBaseUrl": "https://jsonplaceholder.typicode.com",
+  "timeouts": {
+    "ciDefault": 30000,
+    "localDefault": 10000
+  },
+  "retryConfig": {
+    "ci": 2,
+    "local": 0
+  }
+}

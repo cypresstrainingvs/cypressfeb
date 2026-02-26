@@ -1066,3 +1066,94 @@ Cypress.Commands.add('makeApiRequest', (endpoint, method = 'GET', body = null) =
   
   return cy.request(options)
 })
+
+
+// ============================================================================
+// SECTION: CI/CD COMMANDS
+// ============================================================================
+// Commands for CI/CD integration and parallel execution
+
+/*
+ * detectCIPlatform - Detect which CI platform is running the tests
+ * Returns: Jenkins, GitHub Actions, GitLab CI, Azure DevOps, or Local
+ */
+Cypress.Commands.add('detectCIPlatform', () => {
+  let platform = 'Local'
+  
+  if (Cypress.env('JENKINS_URL')) {
+    platform = 'Jenkins'
+  } else if (Cypress.env('GITHUB_ACTIONS')) {
+    platform = 'GitHub Actions'
+  } else if (Cypress.env('GITLAB_CI')) {
+    platform = 'GitLab CI'
+  } else if (Cypress.env('TF_BUILD')) {
+    platform = 'Azure DevOps'
+  } else if (Cypress.env('CI')) {
+    platform = 'CI (Unknown)'
+  }
+  
+  return cy.wrap(platform)
+})
+
+/*
+ * isRunningInCI - Check if tests are running in a CI environment
+ */
+Cypress.Commands.add('isRunningInCI', () => {
+  const isCI = Cypress.env('CI') === true || 
+               Cypress.env('CI') === 'true' ||
+               Cypress.env('JENKINS_URL') !== undefined ||
+               Cypress.env('GITHUB_ACTIONS') !== undefined
+  
+  cy.log('Running in CI: ' + isCI)
+  return cy.wrap(isCI)
+})
+
+/*
+ * healthCheck - Verify application is up before running tests
+ * 
+ * Parameters:
+ *   url - URL to check (defaults to baseUrl)
+ *   timeout - Request timeout in ms
+ */
+Cypress.Commands.add('healthCheck', (url = null, timeout = 30000) => {
+  const checkUrl = url || Cypress.config('baseUrl')
+  
+  cy.log('Running health check on: ' + checkUrl)
+  
+  cy.request({
+    method: 'GET',
+    url: checkUrl,
+    timeout: timeout,
+    failOnStatusCode: false
+  }).then((response) => {
+    if (response.status >= 500) {
+      throw new Error('Health check failed: Server returned ' + response.status)
+    }
+    cy.log('Health check passed: Status ' + response.status)
+  })
+})
+
+/*
+ * logCIBuildInfo - Log CI build information for debugging
+ */
+Cypress.Commands.add('logCIBuildInfo', () => {
+  cy.log('--- CI Build Information ---')
+  cy.log('Build Number: ' + (Cypress.env('BUILD_NUMBER') || 'N/A'))
+  cy.log('Job Name: ' + (Cypress.env('JOB_NAME') || 'N/A'))
+  cy.log('Branch: ' + (Cypress.env('BRANCH_NAME') || 'N/A'))
+  cy.log('Commit: ' + (Cypress.env('GIT_COMMIT') || 'N/A'))
+  cy.log('----------------------------')
+})
+
+/*
+ * generateUniqueTestId - Generate unique ID for test isolation
+ * Useful for parallel execution to avoid data conflicts
+ */
+Cypress.Commands.add('generateUniqueTestId', (prefix = 'test') => {
+  const buildNumber = Cypress.env('BUILD_NUMBER') || '0'
+  const timestamp = Date.now()
+  const uniqueId = prefix + '-' + buildNumber + '-' + timestamp
+  
+  cy.log('Generated unique ID: ' + uniqueId)
+  return cy.wrap(uniqueId)
+})

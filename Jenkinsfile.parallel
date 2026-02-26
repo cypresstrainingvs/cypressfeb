@@ -3,214 +3,228 @@
  * ========================================================================
  * 
  * This file demonstrates parallel test execution in Jenkins.
+ * Works on both Windows and Mac/Linux (cross-platform support).
  * 
  * How to use:
- * 1. Copy this file to your project root as 'Jenkinsfile'
- * 2. Configure Jenkins to use this pipeline
- * 3. Tests will run in parallel across defined stages
+ * 1. In Jenkins, create a new Pipeline job
+ * 2. Point it to this file (or copy to Jenkinsfile)
+ * 3. Tests will run in parallel across Day2, Day3, and Day4
  * 
- * Parallel Execution Methods:
- * Method 1: Jenkins Parallel Stages (shown below)
- * Method 2: Cypress Cloud with --parallel flag
+ * Prerequisites:
+ * - Configure NodeJS in Jenkins: Manage Jenkins > Tools > NodeJS
+ * - Name it 'NodeJS' (or update the tool name below)
  * 
- * Benefits:
- * - Reduces total test execution time
- * - Faster feedback on code changes
- * - Better utilization of CI resources
+ * Parallel Execution Concept:
+ * - Day2 tests, Day3 tests, and Day4 tests run simultaneously
+ * - Total time = longest group (not sum of all)
+ * - Example: Day2=5min, Day3=3min, Day4=4min => Total ~5min instead of 12min
  */
 
 pipeline {
-  agent {
-    docker {
-      image 'cypress/included:13.6.3'
-      args '-u root:root'
-    }
+  agent any
+  
+  tools {
+    nodejs 'NodeJS'
   }
-
+  
   options {
     timestamps()
-    ansiColor('xterm')
     buildDiscarder(logRotator(numToKeepStr: '10'))
-    timeout(time: 45, unit: 'MINUTES')
+    timeout(time: 30, unit: 'MINUTES')
   }
-
+  
   environment {
     CI = 'true'
-    BASE_URL = 'https://example.cypress.io'
-    CYPRESS_RECORD_KEY = credentials('cypress-record-key')  // Store in Jenkins credentials
+    CYPRESS_BASE_URL = 'https://example.cypress.io'
   }
-
+  
   stages {
     
-    stage('Install') {
+    stage('Install Dependencies') {
       steps {
-        sh 'npm ci'
+        script {
+          if (isUnix()) {
+            sh 'npm ci'
+          } else {
+            bat 'npm ci'
+          }
+        }
       }
     }
-
+    
+    stage('Prepare Report Folders') {
+      steps {
+        script {
+          if (isUnix()) {
+            sh '''
+              mkdir -p cypress/reports/day2
+              mkdir -p cypress/reports/day3
+              mkdir -p cypress/reports/day4
+              mkdir -p cypress/reports/combined
+            '''
+          } else {
+            bat '''
+              if not exist cypress\\reports\\day2 mkdir cypress\\reports\\day2
+              if not exist cypress\\reports\\day3 mkdir cypress\\reports\\day3
+              if not exist cypress\\reports\\day4 mkdir cypress\\reports\\day4
+              if not exist cypress\\reports\\combined mkdir cypress\\reports\\combined
+            '''
+          }
+        }
+      }
+    }
+    
     /*
-     * METHOD 1: Jenkins Parallel Stages
-     * ----------------------------------
-     * Split tests into groups and run them simultaneously.
-     * Each stage runs on the same agent but different specs.
+     * PARALLEL TEST EXECUTION
+     * -----------------------
+     * All three stages run at the same time.
+     * Each stage writes reports to its own folder.
+     * Reports are merged after all parallel stages complete.
      */
     stage('Run Tests in Parallel') {
       parallel {
         
-        stage('Smoke Tests') {
+        stage('Day 2 Tests') {
           steps {
-            sh '''
-              npx cypress run \
-                --spec "cypress/e2e/Day4/*.cy.js" \
-                --reporter mochawesome \
-                --reporter-options reportDir=cypress/reports/smoke,overwrite=false,html=false,json=true
-            '''
+            script {
+              if (isUnix()) {
+                sh '''
+                  npx cypress run \
+                    --spec "cypress/e2e/Day2/*.cy.js" \
+                    --reporter mochawesome \
+                    --reporter-options reportDir=cypress/reports/day2,overwrite=false,html=false,json=true
+                '''
+              } else {
+                bat 'npx cypress run --spec "cypress/e2e/Day2/*.cy.js" --reporter mochawesome --reporter-options reportDir=cypress/reports/day2,overwrite=false,html=false,json=true'
+              }
+            }
           }
         }
-
-        stage('API Tests') {
+        
+        stage('Day 3 Tests') {
           steps {
-            sh '''
-              npx cypress run \
-                --spec "cypress/e2e/Day3/apitestingusingcypress.cy.js" \
-                --reporter mochawesome \
-                --reporter-options reportDir=cypress/reports/api,overwrite=false,html=false,json=true
-            '''
+            script {
+              if (isUnix()) {
+                sh '''
+                  npx cypress run \
+                    --spec "cypress/e2e/Day3/*.cy.js" \
+                    --reporter mochawesome \
+                    --reporter-options reportDir=cypress/reports/day3,overwrite=false,html=false,json=true
+                '''
+              } else {
+                bat 'npx cypress run --spec "cypress/e2e/Day3/*.cy.js" --reporter mochawesome --reporter-options reportDir=cypress/reports/day3,overwrite=false,html=false,json=true'
+              }
+            }
           }
         }
-
-        stage('UI Tests') {
+        
+        stage('Day 4 Tests') {
           steps {
-            sh '''
-              npx cypress run \
-                --spec "cypress/e2e/Day2/*.cy.js" \
-                --reporter mochawesome \
-                --reporter-options reportDir=cypress/reports/ui,overwrite=false,html=false,json=true
-            '''
+            script {
+              if (isUnix()) {
+                sh '''
+                  npx cypress run \
+                    --spec "cypress/e2e/Day4/*.cy.js" \
+                    --reporter mochawesome \
+                    --reporter-options reportDir=cypress/reports/day4,overwrite=false,html=false,json=true
+                '''
+              } else {
+                bat 'npx cypress run --spec "cypress/e2e/Day4/*.cy.js" --reporter mochawesome --reporter-options reportDir=cypress/reports/day4,overwrite=false,html=false,json=true'
+              }
+            }
           }
         }
+        
       }
     }
-
-    /*
-     * METHOD 2: Cypress Cloud Parallelization
-     * ----------------------------------------
-     * Uncomment this stage to use Cypress Cloud instead.
-     * Cypress Cloud automatically balances test load across machines.
-     * 
-     * Prerequisites:
-     * - projectId in cypress.config.js
-     * - CYPRESS_RECORD_KEY environment variable
-     * - Multiple Jenkins agents (or matrix build)
-     */
-    /*
-    stage('Run with Cypress Cloud') {
-      parallel {
-        stage('Machine 1') {
-          steps {
-            sh 'npx cypress run --record --parallel --group "all-tests"'
-          }
-        }
-        stage('Machine 2') {
-          steps {
-            sh 'npx cypress run --record --parallel --group "all-tests"'
-          }
-        }
-        stage('Machine 3') {
-          steps {
-            sh 'npx cypress run --record --parallel --group "all-tests"'
-          }
-        }
-      }
-    }
-    */
-
+    
     stage('Merge Reports') {
       steps {
-        sh '''
-          mkdir -p cypress/reports/combined
-          
-          # Find all JSON reports and merge them
-          find cypress/reports -name "*.json" -type f | head -20 | xargs cat > /dev/null 2>&1 || true
-          
-          # Merge if reports exist
-          if ls cypress/reports/*/*.json 1> /dev/null 2>&1; then
-            npx mochawesome-merge "cypress/reports/*/*.json" > cypress/reports/combined/merged.json
-            npx marge cypress/reports/combined/merged.json -o cypress/reports/combined --inline
-          fi
-        '''
+        script {
+          if (isUnix()) {
+            sh '''
+              # Merge all JSON reports into one
+              npx mochawesome-merge "cypress/reports/day2/*.json" "cypress/reports/day3/*.json" "cypress/reports/day4/*.json" > cypress/reports/combined/merged.json || true
+              
+              # Generate HTML report
+              npx marge cypress/reports/combined/merged.json -o cypress/reports/combined --inline || true
+            '''
+          } else {
+            bat '''
+              npx mochawesome-merge "cypress/reports/day2/*.json" "cypress/reports/day3/*.json" "cypress/reports/day4/*.json" > cypress/reports/combined/merged.json 2>nul || echo Merge completed
+              npx marge cypress/reports/combined/merged.json -o cypress/reports/combined --inline 2>nul || echo Report generated
+            '''
+          }
+        }
       }
     }
-
-    stage('Publish Results') {
+    
+    stage('Archive Results') {
       steps {
-        // Publish HTML report
-        publishHTML(target: [
-          reportDir: 'cypress/reports/combined',
-          reportFiles: 'mochawesome.html',
-          reportName: 'Cypress Test Report',
-          keepAll: true,
-          alwaysLinkToLastBuild: true,
-          allowMissing: true
-        ])
-        
-        // Archive artifacts
+        // Archive test artifacts
         archiveArtifacts artifacts: 'cypress/videos/**', allowEmptyArchive: true
         archiveArtifacts artifacts: 'cypress/screenshots/**', allowEmptyArchive: true
         archiveArtifacts artifacts: 'cypress/reports/**', allowEmptyArchive: true
       }
     }
+    
   }
-
+  
   post {
     success {
-      echo 'All parallel tests passed successfully'
+      echo 'All parallel tests completed successfully'
     }
     failure {
-      echo 'Some tests failed - check the reports'
+      echo 'Some tests failed - check the reports for details'
     }
     always {
-      echo 'Pipeline completed'
+      echo 'Parallel pipeline execution completed'
+      echo "Total build time: ${currentBuild.durationString}"
     }
   }
 }
 
 
 /*
- * TRAINER NOTES - Jenkins Parallel Execution
- * ==========================================
+ * TRAINER NOTES - Parallel Execution in Jenkins
+ * =============================================
  * 
- * Key Concepts to Explain:
+ * 1. What is Parallel Execution?
+ *    - Multiple test groups run at the same time
+ *    - Total time = longest group, not sum of all groups
+ *    - Faster feedback for developers
  * 
- * 1. Why Parallel Execution?
- *    - 100 tests taking 30 minutes sequentially
- *    - Split into 3 parallel groups = ~10 minutes each
- *    - Total time reduced from 30 min to ~10 min
+ * 2. How This Pipeline Works:
+ *    - Stage 1: Install npm dependencies
+ *    - Stage 2: Create report folders
+ *    - Stage 3: Run Day2, Day3, Day4 tests IN PARALLEL
+ *    - Stage 4: Merge all reports into one
+ *    - Stage 5: Archive artifacts
  * 
- * 2. Jenkins Parallel Stages:
- *    - Easy to set up
- *    - Each stage gets different specs
- *    - Reports merged at the end
- *    - Runs on same agent (limited parallelism)
+ * 3. Time Savings Example:
+ *    Sequential:  Day2(5min) + Day3(3min) + Day4(4min) = 12 minutes
+ *    Parallel:    All run together = ~5 minutes (longest group)
+ *    Savings:     7 minutes (58% faster)
  * 
- * 3. Cypress Cloud Parallelization:
- *    - Smart load balancing
- *    - Runs across multiple machines
- *    - Automatically distributes specs
- *    - Tracks historical test times
+ * 4. Key Points to Remember:
+ *    - Tests must be independent (no shared state)
+ *    - Each parallel stage writes to its own report folder
+ *    - Reports are merged after all stages complete
+ *    - If one stage fails, others continue to run
  * 
- * 4. When to Use Each:
- *    - Small projects: Jenkins parallel stages
- *    - Large projects: Cypress Cloud
- *    - Enterprise: Cypress Cloud with multiple agents
+ * 5. Limitations of Jenkins Parallel Stages:
+ *    - Runs on same machine (limited by CPU/memory)
+ *    - Manual grouping of test files
+ *    - No automatic load balancing
  * 
- * 5. Best Practices:
- *    - Keep tests independent
- *    - Use unique test data per test
- *    - Group similar tests together
- *    - Monitor test times regularly
+ * 6. For Better Parallelization (Enterprise):
+ *    - Use Cypress Cloud with --parallel flag
+ *    - Automatic load balancing across machines
+ *    - Historical data to optimize distribution
+ *    - Requires Cypress Cloud subscription
  * 
- * Commands to Demo:
- *    Local parallel:   npx cypress run --spec "cypress/e2e/Day4/*.cy.js"
- *    With recording:   npx cypress run --record --key $KEY --parallel
+ * Demo Commands (local testing):
+ *    Run Day2 only:  npx cypress run --spec "cypress/e2e/Day2/*.cy.js"
+ *    Run Day3 only:  npx cypress run --spec "cypress/e2e/Day3/*.cy.js"
+ *    Run Day4 only:  npx cypress run --spec "cypress/e2e/Day4/*.cy.js"
  */

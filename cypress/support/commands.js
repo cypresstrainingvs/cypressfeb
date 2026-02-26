@@ -441,5 +441,628 @@ Cypress.Commands.add('apiPostAndValidate', (url, body, expectedStatus = 201) => 
 })
 
 // ============================================================================
+// SECTION: DAY 3 - ENTERPRISE API TESTING CUSTOM COMMANDS
+// ============================================================================
+// These commands demonstrate enterprise-level API testing patterns
+// with proper error handling, logging, and reusability
+// ============================================================================
+
+/**
+ * 🌐 API REQUEST - Universal API Request Command
+ * ---------------------------------------------
+ * A comprehensive command that handles all HTTP methods with full configuration
+ * 
+ * ENTERPRISE BENEFIT:
+ * - Single command for all API operations
+ * - Consistent logging and error handling
+ * - Supports headers, query params, timeouts
+ * - Returns chainable response object
+ * 
+ * @param {Object} options - Request configuration
+ * @param {string} options.method - HTTP method (GET, POST, PUT, PATCH, DELETE)
+ * @param {string} options.url - API endpoint URL
+ * @param {Object} [options.body] - Request body for POST/PUT/PATCH
+ * @param {Object} [options.headers] - Custom headers
+ * @param {Object} [options.qs] - Query string parameters
+ * @param {number} [options.timeout] - Request timeout in ms
+ * @param {boolean} [options.failOnStatusCode] - Fail on non-2xx status (default: false)
+ * 
+ * @example 
+ * cy.apiRequest({
+ *   method: 'POST',
+ *   url: '/api/users',
+ *   body: { name: 'John' },
+ *   headers: { Authorization: 'Bearer token' }
+ * })
+ */
+Cypress.Commands.add('apiRequest', (options) => {
+  const {
+    method = 'GET',
+    url,
+    body = null,
+    headers = {},
+    qs = {},
+    timeout = 30000,
+    failOnStatusCode = false
+  } = options
+
+  cy.log(`📡 API ${method}: ${url}`)
+
+  const requestConfig = {
+    method,
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...headers
+    },
+    failOnStatusCode,
+    timeout
+  }
+
+  // Add body for methods that support it
+  if (body && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
+    requestConfig.body = body
+  }
+
+  // Add query parameters if provided
+  if (Object.keys(qs).length > 0) {
+    requestConfig.qs = qs
+  }
+
+  return cy.request(requestConfig).then((response) => {
+    cy.log(`✅ Response Status: ${response.status}`)
+    cy.log(`⏱️ Response Time: ${response.duration}ms`)
+    return cy.wrap(response)
+  })
+})
+
+/**
+ * 🔐 API LOGIN - Authenticate and Store Token
+ * ------------------------------------------
+ * Performs API login and stores the authentication token for subsequent requests
+ * 
+ * ENTERPRISE BENEFIT:
+ * - Handles authentication flow
+ * - Stores token for reuse
+ * - Supports different auth endpoints
+ * 
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @param {string} [authEndpoint] - Custom auth endpoint
+ * 
+ * @example cy.apiLogin('user@test.com', 'password123')
+ */
+Cypress.Commands.add('apiLogin', (email, password, authEndpoint = 'https://reqres.in/api/login') => {
+  cy.log(`🔐 API Login: ${email}`)
+  
+  return cy.request({
+    method: 'POST',
+    url: authEndpoint,
+    body: { email, password },
+    failOnStatusCode: false
+  }).then((response) => {
+    if (response.status === 200 && response.body.token) {
+      // Store token in Cypress environment
+      Cypress.env('authToken', response.body.token)
+      cy.log(`✅ Login successful - Token stored`)
+      return cy.wrap({ success: true, token: response.body.token })
+    } else {
+      cy.log(`❌ Login failed - Status: ${response.status}`)
+      return cy.wrap({ success: false, error: response.body })
+    }
+  })
+})
+
+/**
+ * 🔗 API AUTHENTICATED REQUEST - Request with Auth Token
+ * -----------------------------------------------------
+ * Makes an authenticated API request using stored token
+ * 
+ * @param {Object} options - Same options as apiRequest
+ * 
+ * @example cy.apiAuthRequest({ method: 'GET', url: '/api/protected' })
+ */
+Cypress.Commands.add('apiAuthRequest', (options) => {
+  const token = Cypress.env('authToken')
+  
+  if (!token) {
+    cy.log('⚠️ No auth token found - Proceeding without authentication')
+  }
+
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
+
+  return cy.apiRequest({
+    ...options,
+    headers: {
+      ...authHeaders,
+      ...options.headers
+    }
+  })
+})
+
+/**
+ * ✅ VALIDATE RESPONSE SCHEMA - Schema Validation Command
+ * ------------------------------------------------------
+ * Validates API response against expected schema
+ * 
+ * ENTERPRISE BENEFIT:
+ * - Ensures API contracts are maintained
+ * - Validates field types and required fields
+ * - Provides detailed error messages
+ * 
+ * @param {Object} response - Cypress response object
+ * @param {Object} schema - Expected schema { requiredFields: [], types: {} }
+ * 
+ * @example 
+ * cy.apiRequest({ url: '/posts/1' })
+ *   .validateSchema({
+ *     requiredFields: ['id', 'title'],
+ *     types: { id: 'number', title: 'string' }
+ *   })
+ */
+Cypress.Commands.add('validateSchema', { prevSubject: true }, (response, schema) => {
+  const { requiredFields = [], types = {} } = schema
+  const data = response.body
+
+  cy.log('🔍 Validating Response Schema')
+
+  // Handle array responses - validate first item
+  const itemToValidate = Array.isArray(data) ? data[0] : data
+
+  // Check required fields
+  requiredFields.forEach((field) => {
+    expect(itemToValidate, `Required field "${field}"`).to.have.property(field)
+  })
+
+  // Check field types
+  Object.entries(types).forEach(([field, expectedType]) => {
+    if (itemToValidate[field] !== undefined) {
+      expect(typeof itemToValidate[field], `Field "${field}" type`).to.eq(expectedType)
+    }
+  })
+
+  cy.log('✅ Schema validation passed')
+  return cy.wrap(response)
+})
+
+/**
+ * 📊 VALIDATE RESPONSE HEADERS - Header Validation Command
+ * -------------------------------------------------------
+ * Validates specific headers in API response
+ * 
+ * @param {Object} expectedHeaders - Key-value pairs of expected headers
+ * 
+ * @example 
+ * cy.apiRequest({ url: '/posts' })
+ *   .validateHeaders({ 'content-type': 'application/json' })
+ */
+Cypress.Commands.add('validateHeaders', { prevSubject: true }, (response, expectedHeaders) => {
+  cy.log('📊 Validating Response Headers')
+
+  Object.entries(expectedHeaders).forEach(([header, expectedValue]) => {
+    const actualValue = response.headers[header.toLowerCase()]
+    expect(actualValue, `Header "${header}"`).to.include(expectedValue)
+  })
+
+  cy.log('✅ Header validation passed')
+  return cy.wrap(response)
+})
+
+/**
+ * 🔄 API CRUD OPERATIONS - Create, Read, Update, Delete
+ * -----------------------------------------------------
+ * Convenience commands for common CRUD operations
+ */
+
+// CREATE (POST)
+Cypress.Commands.add('apiCreate', (url, data, headers = {}) => {
+  cy.log(`📝 CREATE: ${url}`)
+  return cy.apiRequest({
+    method: 'POST',
+    url,
+    body: data,
+    headers
+  })
+})
+
+// READ (GET)
+Cypress.Commands.add('apiRead', (url, queryParams = {}, headers = {}) => {
+  cy.log(`📖 READ: ${url}`)
+  return cy.apiRequest({
+    method: 'GET',
+    url,
+    qs: queryParams,
+    headers
+  })
+})
+
+// UPDATE (PUT - Full update)
+Cypress.Commands.add('apiUpdate', (url, data, headers = {}) => {
+  cy.log(`✏️ UPDATE (PUT): ${url}`)
+  return cy.apiRequest({
+    method: 'PUT',
+    url,
+    body: data,
+    headers
+  })
+})
+
+// PARTIAL UPDATE (PATCH)
+Cypress.Commands.add('apiPatch', (url, data, headers = {}) => {
+  cy.log(`🔧 PATCH: ${url}`)
+  return cy.apiRequest({
+    method: 'PATCH',
+    url,
+    body: data,
+    headers
+  })
+})
+
+// DELETE
+Cypress.Commands.add('apiDelete', (url, headers = {}) => {
+  cy.log(`🗑️ DELETE: ${url}`)
+  return cy.apiRequest({
+    method: 'DELETE',
+    url,
+    headers
+  })
+})
+
+// ----------------------------------------------------------------------------
+// IFRAME HANDLING COMMANDS
+// ----------------------------------------------------------------------------
+// Iframes embed separate HTML documents inside a page.
+// Cypress cannot directly access iframe content because it runs in the
+// main document context. These commands help bridge that gap.
+// ----------------------------------------------------------------------------
+
+/*
+ * getIframeBody - Access the body element inside an iframe
+ * 
+ * Why this is needed:
+ * - Iframes have their own document context (separate from main page)
+ * - Cypress commands only work in the main document by default
+ * - We need to extract the iframe body and wrap it for Cypress to use
+ * 
+ * How it works:
+ * 1. Find the iframe element using the selector
+ * 2. Access its contentDocument.body property
+ * 3. Wait until the body has content (not empty)
+ * 4. Wrap it so Cypress commands can be chained
+ * 
+ * Usage:
+ *   cy.getIframeBody('#my-iframe').find('button').click()
+ *   cy.getIframeBody('.editor-frame').find('p').type('Hello')
+ */
+Cypress.Commands.add('getIframeBody', (iframeSelector) => {
+  // Log what we're doing for test debugging
+  cy.log('Accessing iframe: ' + iframeSelector)
+
+  return cy
+    .get(iframeSelector)
+    .its('0.contentDocument.body')  // Get the body of the iframe document
+    .should('not.be.empty')         // Wait for content to load
+    .then(cy.wrap)                  // Wrap it so we can use Cypress commands
+})
+
+/*
+ * getIframeDocument - Get the full iframe document for more control
+ * 
+ * Use this when you need access to the iframe's document object,
+ * not just the body. Useful for complex iframe interactions.
+ */
+Cypress.Commands.add('getIframeDocument', (iframeSelector) => {
+  return cy
+    .get(iframeSelector)
+    .its('0.contentDocument')
+    .should('exist')
+})
+
+/*
+ * typeInTinyMce - Type into TinyMCE editor (handles readonly state)
+ * 
+ * TinyMCE editors need special handling. This command:
+ * 1. Gets the iframe element directly
+ * 2. Accesses its contentDocument 
+ * 3. Sets the content via innerHTML
+ */
+Cypress.Commands.add('typeInTinyMce', (iframeSelector, text) => {
+  cy.get(iframeSelector).then(($iframe) => {
+    const iframeDoc = $iframe[0].contentDocument
+    const body = iframeDoc.body
+    body.innerHTML = '<p>' + text + '</p>'
+  })
+  // Small wait for DOM to update
+  cy.wait(100)
+})
+
+/*
+ * typeInIframe - Type text into an element inside an iframe
+ * 
+ * A convenience command that combines iframe access with typing.
+ * Useful when you need to type into iframe content frequently.
+ * 
+ * Parameters:
+ *   iframeSelector - CSS selector for the iframe
+ *   elementSelector - CSS selector for the element inside the iframe
+ *   text - The text to type
+ * 
+ * Usage:
+ *   cy.typeInIframe('#editor-iframe', 'p', 'Hello World')
+ */
+Cypress.Commands.add('typeInIframe', (iframeSelector, elementSelector, text) => {
+  cy.getIframeBody(iframeSelector)
+    .find(elementSelector)
+    .click()
+    .type('{selectall}' + text)
+})
+
+/*
+ * clickInIframe - Click an element inside an iframe
+ * 
+ * Parameters:
+ *   iframeSelector - CSS selector for the iframe
+ *   elementSelector - CSS selector for the element to click
+ * 
+ * Usage:
+ *   cy.clickInIframe('#my-iframe', 'button.submit')
+ */
+Cypress.Commands.add('clickInIframe', (iframeSelector, elementSelector) => {
+  cy.getIframeBody(iframeSelector)
+    .find(elementSelector)
+    .click()
+})
+
+/**
+ * 📁 FILE UPLOAD - Custom Command for File Uploads
+ * ------------------------------------------------
+ * Handles file uploads using different methods
+ * 
+ * @param {string} selector - Input file element selector
+ * @param {string} filePath - Path to file in fixtures folder
+ * @param {string} [mimeType] - File MIME type
+ * 
+ * @example cy.uploadFile('input[type="file"]', 'test-image.png', 'image/png')
+ */
+Cypress.Commands.add('uploadFile', (selector, filePath, mimeType = '') => {
+  cy.log(`📁 Uploading file: ${filePath}`)
+  
+  return cy.fixture(filePath, 'base64').then((fileContent) => {
+    const fileName = filePath.split('/').pop()
+    
+    cy.get(selector).then((input) => {
+      const blob = Cypress.Blob.base64StringToBlob(fileContent, mimeType)
+      const file = new File([blob], fileName, { type: mimeType })
+      const dataTransfer = new DataTransfer()
+      dataTransfer.items.add(file)
+      
+      input[0].files = dataTransfer.files
+      cy.wrap(input).trigger('change', { force: true })
+    })
+  })
+})
+
+/**
+ * 📥 VERIFY DOWNLOAD - Check if file was downloaded
+ * ------------------------------------------------
+ * Verifies a file exists in the downloads folder
+ * 
+ * @param {string} fileName - Name of the downloaded file
+ * 
+ * @example cy.verifyDownload('report.pdf')
+ */
+Cypress.Commands.add('verifyDownload', (fileName) => {
+  cy.log(`📥 Verifying download: ${fileName}`)
+  
+  const downloadsFolder = Cypress.config('downloadsFolder')
+  cy.readFile(`${downloadsFolder}/${fileName}`, { timeout: 15000 }).should('exist')
+})
+
+/**
+ * 🔀 INTERCEPT AND MOCK - Enhanced Intercept Command
+ * -------------------------------------------------
+ * Simplifies API mocking with built-in fixture support
+ * 
+ * @param {string} method - HTTP method to intercept
+ * @param {string|RegExp} url - URL pattern to intercept
+ * @param {string|Object} response - Fixture name or response object
+ * @param {string} alias - Alias for the intercept
+ * @param {number} [statusCode] - Response status code
+ * @param {number} [delay] - Response delay in ms
+ * 
+ * @example 
+ * cy.interceptAndMock('GET', '/api/users', 'mockApiResponses', 'getUsers')
+ * cy.interceptAndMock('GET', '/api/posts', { id: 1 }, 'getPosts', 200, 1000)
+ */
+Cypress.Commands.add('interceptAndMock', (method, url, response, alias, statusCode = 200, delay = 0) => {
+  cy.log(`🔀 Intercepting ${method} ${url}`)
+  
+  if (typeof response === 'string') {
+    // Response is a fixture name
+    cy.fixture(response).then((fixtureData) => {
+      cy.intercept(method, url, {
+        statusCode,
+        body: fixtureData,
+        delay
+      }).as(alias)
+    })
+  } else {
+    // Response is an object
+    cy.intercept(method, url, {
+      statusCode,
+      body: response,
+      delay
+    }).as(alias)
+  }
+})
+
+/**
+ * ⏱️ WAIT FOR API - Wait for API call and validate
+ * -----------------------------------------------
+ * Waits for intercepted API call and validates response
+ * 
+ * @param {string} alias - Intercept alias (with @)
+ * @param {number} [expectedStatus] - Expected status code
+ * 
+ * @example cy.waitForApi('@getUsers', 200)
+ */
+Cypress.Commands.add('waitForApi', (alias, expectedStatus = null) => {
+  cy.log(`⏱️ Waiting for API: ${alias}`)
+  
+  return cy.wait(alias).then((interception) => {
+    if (expectedStatus) {
+      expect(interception.response.statusCode).to.eq(expectedStatus)
+    }
+    cy.log(`✅ API ${alias} completed - Status: ${interception.response.statusCode}`)
+    return cy.wrap(interception)
+  })
+})
+
+// ============================================================================
 // END OF CUSTOM COMMANDS
 // ============================================================================
+
+
+// ============================================================================
+// FILE UPLOAD AND DOWNLOAD CUSTOM COMMANDS
+// ============================================================================
+
+/*
+ * uploadFile - Upload a file to a file input element
+ * Uses Cypress native selectFile command (built-in since Cypress 9.3)
+ * 
+ * Parameters:
+ *   selector - CSS selector for the file input element
+ *   fileName - Name of the file in fixtures folder
+ */
+Cypress.Commands.add('uploadFile', (selector, fileName) => {
+  cy.log('Uploading file: ' + fileName)
+  cy.get(selector).selectFile('cypress/fixtures/' + fileName, { force: true })
+})
+
+/*
+ * verifyDownloadedFile - Check if a file was downloaded and verify its content
+ * 
+ * Parameters:
+ *   fileName - Name of the downloaded file
+ *   expectedContent - Optional text to verify in the file
+ *   timeout - How long to wait for file (default 15 seconds)
+ */
+Cypress.Commands.add('verifyDownloadedFile', (fileName, expectedContent = null, timeout = 15000) => {
+  const downloadsFolder = Cypress.config('downloadsFolder')
+  const filePath = downloadsFolder + '/' + fileName
+  
+  cy.log('Checking for downloaded file: ' + fileName)
+  
+  if (expectedContent) {
+    cy.readFile(filePath, { timeout: timeout })
+      .should('exist')
+      .and('contain', expectedContent)
+  } else {
+    cy.readFile(filePath, { timeout: timeout })
+      .should('exist')
+  }
+})
+
+/*
+ * clearDownloadsFolder - Clear all files from downloads folder before test
+ */
+Cypress.Commands.add('clearDownloadsFolder', () => {
+  const downloadsFolder = Cypress.config('downloadsFolder')
+  cy.task('clearDownloads', downloadsFolder).then((count) => {
+    cy.log('Cleared ' + count + ' files from downloads folder')
+  })
+})
+
+
+// ============================================================================
+// SECTION: ENVIRONMENT VARIABLE COMMANDS
+// ============================================================================
+// These commands help work with environment variables in a structured way
+
+/*
+ * getEnvVariable - Get an environment variable with logging
+ * 
+ * Parameters:
+ *   varName - Name of the environment variable
+ *   defaultValue - Default value if not set
+ */
+Cypress.Commands.add('getEnvVariable', (varName, defaultValue = null) => {
+  const value = Cypress.env(varName)
+  if (value === undefined && defaultValue !== null) {
+    cy.log('Environment variable "' + varName + '" not set, using default: ' + defaultValue)
+    return cy.wrap(defaultValue)
+  }
+  cy.log('Environment variable "' + varName + '": ' + value)
+  return cy.wrap(value)
+})
+
+/*
+ * verifyEnvVariable - Verify an environment variable has expected value
+ * 
+ * Parameters:
+ *   varName - Name of the environment variable
+ *   expectedValue - Expected value
+ */
+Cypress.Commands.add('verifyEnvVariable', (varName, expectedValue) => {
+  const actualValue = Cypress.env(varName)
+  cy.log('Verifying "' + varName + '" equals "' + expectedValue + '"')
+  expect(actualValue).to.equal(expectedValue)
+})
+
+/*
+ * checkFeatureFlag - Check if a feature flag is enabled
+ * 
+ * Parameters:
+ *   flagName - Name of the feature flag
+ */
+Cypress.Commands.add('checkFeatureFlag', (flagName) => {
+  const featureFlags = Cypress.env('featureFlags') || {}
+  const isEnabled = featureFlags[flagName] === true
+  cy.log('Feature flag "' + flagName + '" is ' + (isEnabled ? 'enabled' : 'disabled'))
+  return cy.wrap(isEnabled)
+})
+
+/*
+ * logEnvironmentInfo - Log current environment configuration
+ * Useful for debugging and test reports
+ */
+Cypress.Commands.add('logEnvironmentInfo', () => {
+  const environment = Cypress.env('environment') || 'not set'
+  const apiBaseUrl = Cypress.env('apiBaseUrl') || 'not set'
+  const baseUrl = Cypress.config('baseUrl') || 'not set'
+  
+  cy.log('--- Environment Information ---')
+  cy.log('Environment: ' + environment)
+  cy.log('Base URL: ' + baseUrl)
+  cy.log('API Base URL: ' + apiBaseUrl)
+  cy.log('-------------------------------')
+})
+
+/*
+ * makeApiRequest - Make API request using environment base URL
+ * 
+ * Parameters:
+ *   endpoint - API endpoint path
+ *   method - HTTP method (default GET)
+ *   body - Request body for POST/PUT
+ */
+Cypress.Commands.add('makeApiRequest', (endpoint, method = 'GET', body = null) => {
+  const apiBaseUrl = Cypress.env('apiBaseUrl')
+  const url = apiBaseUrl + endpoint
+  
+  cy.log('Making ' + method + ' request to: ' + url)
+  
+  const options = {
+    method: method,
+    url: url,
+    failOnStatusCode: false
+  }
+  
+  if (body) {
+    options.body = body
+  }
+  
+  return cy.request(options)
+})

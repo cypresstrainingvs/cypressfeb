@@ -1,0 +1,100 @@
+{
+  "_comment": "============================================================================",
+  "_title": "MOCK API RESPONSES - For cy.intercept() Demonstrations",
+  "_description": "Pre-defined mock responses for stubbing API calls",
+  "_comment_end": "============================================================================",
+
+  "mockUsers": [
+    {
+      "id": 1,
+      "name": "Mock User One",
+      "email": "mockuser1@test.com",
+      "phone": "123-456-7890"
+    },
+    {
+      "id": 2,
+      "name": "Mock User Two",
+      "email": "mockuser2@test.com",
+      "phone": "098-765-4321"
+    }
+  ],
+
+  "mockPosts": [
+    {
+      "id": 1,
+      "title": "Mocked Post Title",
+      "body": "This is a mocked response body for testing",
+      "userId": 1
+    },
+    {
+      "id": 2,
+      "title": "Another Mocked Post",
+      "body": "Second mocked post for pagination testing",
+      "userId": 1
+    }
+  ],
+
+  "mockTodos": [
+    {
+      "id": 1,
+      "title": "Complete Cypress Training",
+      "completed": false,
+      "userId": 1
+    },
+    {
+      "id": 2,
+      "title": "Write API Tests",
+      "completed": true,
+      "userId": 1
+    }
+  ],
+
+  "mockErrors": {
+    "notFound": {
+      "statusCode": 404,
+      "body": {
+        "error": "Resource not found",
+        "message": "The requested resource does not exist"
+      }
+    },
+    "unauthorized": {
+      "statusCode": 401,
+      "body": {
+        "error": "Unauthorized",
+        "message": "Authentication required"
+      }
+    },
+    "serverError": {
+      "statusCode": 500,
+      "body": {
+        "error": "Internal Server Error",
+        "message": "Something went wrong on the server"
+      }
+    },
+    "validationError": {
+      "statusCode": 400,
+      "body": {
+        "error": "Bad Request",
+        "message": "Invalid input data",
+        "details": ["Title is required", "Body cannot be empty"]
+      }
+    }
+  },
+
+  "mockDelayedResponse": {
+    "users": [
+      {
+        "id": 1,
+        "name": "Delayed Response User",
+        "email": "delayed@test.com"
+      }
+    ],
+    "delay": 2000
+  },
+
+  "mockEmptyResponse": {
+    "data": [],
+    "total": 0,
+    "message": "No records found"
+  }
+}

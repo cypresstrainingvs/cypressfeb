@@ -1,0 +1,100 @@
+{
+  "_comment": "============================================================================",
+  "_title": "DAY 3 - API TESTING FIXTURE DATA",
+  "_description": "Centralized test data for API testing demonstrations",
+  "_bestPractice": "Keep test data separate from test logic for maintainability",
+  "_comment_end": "============================================================================",
+
+  "baseUrls": {
+    "jsonPlaceholder": "https://jsonplaceholder.typicode.com",
+    "reqres": "https://reqres.in/api",
+    "httpbin": "https://httpbin.org"
+  },
+
+  "endpoints": {
+    "posts": "/posts",
+    "users": "/users",
+    "comments": "/comments",
+    "albums": "/albums",
+    "todos": "/todos"
+  },
+
+  "testUsers": {
+    "validUser": {
+      "email": "eve.holt@reqres.in",
+      "password": "cityslicka"
+    },
+    "newUser": {
+      "name": "John Doe",
+      "job": "QA Engineer",
+      "email": "john.doe@example.com"
+    },
+    "updateUser": {
+      "name": "Jane Smith",
+      "job": "Senior QA Engineer"
+    }
+  },
+
+  "testPosts": {
+    "newPost": {
+      "title": "Cypress API Testing",
+      "body": "This is a demonstration of API testing using Cypress cy.request()",
+      "userId": 1
+    },
+    "updatePost": {
+      "title": "Updated Post Title",
+      "body": "This post has been updated using PUT request",
+      "userId": 1
+    },
+    "patchPost": {
+      "title": "Partially Updated Title"
+    }
+  },
+
+  "expectedResponses": {
+    "successStatusCodes": [200, 201, 204],
+    "clientErrorCodes": [400, 401, 403, 404],
+    "serverErrorCodes": [500, 502, 503]
+  },
+
+  "headers": {
+    "contentType": "application/json",
+    "accept": "application/json",
+    "authorization": "Bearer test-token-12345"
+  },
+
+  "queryParams": {
+    "pagination": {
+      "_page": 1,
+      "_limit": 5
+    },
+    "filtering": {
+      "userId": 1
+    },
+    "sorting": {
+      "_sort": "id",
+      "_order": "desc"
+    }
+  },
+
+  "validationSchemas": {
+    "post": {
+      "requiredFields": ["id", "title", "body", "userId"],
+      "types": {
+        "id": "number",
+        "title": "string",
+        "body": "string",
+        "userId": "number"
+      }
+    },
+    "user": {
+      "requiredFields": ["id", "name", "username", "email"],
+      "types": {
+        "id": "number",
+        "name": "string",
+        "username": "string",
+        "email": "string"
+      }
+    }
+  }
+}

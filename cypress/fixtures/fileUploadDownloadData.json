@@ -1,0 +1,20 @@
+{
+  "uploadPage": {
+    "url": "https://the-internet.herokuapp.com/upload",
+    "fileInput": "#file-upload",
+    "submitButton": "#file-submit",
+    "successMessage": "File Uploaded!"
+  },
+  "downloadPage": {
+    "url": "https://the-internet.herokuapp.com/download",
+    "fileLink": "a[href*='some-file.txt']"
+  },
+  "testFiles": {
+    "sampleText": "sample-upload.txt",
+    "expectedContent": "sample file for upload"
+  },
+  "timeouts": {
+    "downloadWait": 15000,
+    "fileCheck": 10000
+  }
+}

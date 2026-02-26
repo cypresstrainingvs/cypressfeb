@@ -1,0 +1,24 @@
+{
+  "testUsers": {
+    "admin": {
+      "username": "admin_user",
+      "role": "administrator"
+    },
+    "standard": {
+      "username": "standard_user",
+      "role": "viewer"
+    }
+  },
+  "endpoints": {
+    "users": "/users",
+    "posts": "/posts",
+    "comments": "/comments"
+  },
+  "expectedEnvironments": ["development", "qa", "staging", "production"],
+  "messages": {
+    "envLoaded": "Environment variables loaded successfully",
+    "configValid": "Configuration is valid",
+    "featureFlagEnabled": "Feature flag is enabled",
+    "featureFlagDisabled": "Feature flag is disabled"
+  }
+}

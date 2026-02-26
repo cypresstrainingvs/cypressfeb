@@ -1,0 +1,54 @@
+{
+  "users": {
+    "success": {
+      "statusCode": 200,
+      "body": {
+        "users": [
+          { "id": 1, "name": "John Doe", "email": "john@example.com" },
+          { "id": 2, "name": "Jane Smith", "email": "jane@example.com" }
+        ]
+      }
+    },
+    "empty": {
+      "statusCode": 200,
+      "body": {
+        "users": []
+      }
+    },
+    "serverError": {
+      "statusCode": 500,
+      "body": {
+        "message": "Internal Server Error"
+      }
+    },
+    "unauthorized": {
+      "statusCode": 401,
+      "body": {
+        "message": "Unauthorized access"
+      }
+    },
+    "notFound": {
+      "statusCode": 404,
+      "body": {
+        "message": "User not found"
+      }
+    }
+  },
+  "posts": {
+    "success": {
+      "statusCode": 200,
+      "body": [
+        { "id": 1, "title": "First Post", "author": "John" },
+        { "id": 2, "title": "Second Post", "author": "Jane" }
+      ]
+    },
+    "created": {
+      "statusCode": 201,
+      "body": {
+        "id": 101,
+        "title": "New Post",
+        "message": "Post created successfully"
+      }
+    }
+  }
+}

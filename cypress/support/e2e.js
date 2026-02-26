@@ -15,3 +15,6 @@
 
 // Import commands.js using ES2015 syntax:
 import './commands'
+
+// Import cypress-file-upload plugin for file upload testing
+import 'cypress-file-upload'

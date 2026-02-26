@@ -1,0 +1,39 @@
+{
+  "testSites": {
+    "tinyMceEditor": {
+      "url": "https://the-internet.herokuapp.com/iframe",
+      "iframeSelector": "#mce_0_ifr",
+      "editorBodySelector": "#tinymce",
+      "paragraphSelector": "p",
+      "description": "TinyMCE WYSIWYG Editor with iframe"
+    },
+    "w3Schools": {
+      "url": "https://www.w3schools.com/html/tryit.asp?filename=tryhtml_iframe_height_width",
+      "iframeSelector": "#iframeResult",
+      "description": "W3Schools iframe demo page"
+    }
+  },
+
+  "testData": {
+    "sampleText": "Hello from Cypress!",
+    "longText": "This is a longer piece of text to verify that the iframe editor can handle multiple words and sentences properly.",
+    "specialChars": "Testing special chars: @#$%^&*()",
+    "formattedText": "Bold text and italic text"
+  },
+
+  "timeouts": {
+    "iframeLoad": 10000,
+    "elementVisible": 5000,
+    "typeDelay": 50
+  },
+
+  "selectors": {
+    "tinyMce": {
+      "iframe": "#mce_0_ifr",
+      "body": "#tinymce",
+      "paragraph": "p",
+      "boldButton": "button[title='Bold']",
+      "italicButton": "button[title='Italic']"
+    }
+  }
+}

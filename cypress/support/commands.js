@@ -1157,3 +1157,203 @@ Cypress.Commands.add('generateUniqueTestId', (prefix = 'test') => {
   cy.log('Generated unique ID: ' + uniqueId)
   return cy.wrap(uniqueId)
 })
+
+// ============================================================================
+// ENTERPRISE LOGIN COMMANDS - Scalable & Reusable
+// ============================================================================
+
+/*
+ * loginToHerokuApp - Login to the-internet.herokuapp.com/login
+ * 
+ * This is a real working login that the team can test against.
+ * Valid credentials: tomsmith / SuperSecretPassword!
+ * 
+ * Parameters:
+ *   username - Username to enter
+ *   password - Password to enter
+ * 
+ * Usage:
+ *   cy.loginToHerokuApp('tomsmith', 'SuperSecretPassword!')
+ *   cy.loginToHerokuApp() // Uses fixture data
+ */
+Cypress.Commands.add('loginToHerokuApp', (username, password) => {
+  const loginUrl = 'https://the-internet.herokuapp.com/login'
+  
+  cy.visit(loginUrl)
+  
+  // If no credentials passed, use fixture
+  if (!username || !password) {
+    cy.fixture('loginCredentials').then((data) => {
+      const user = data.validUser
+      cy.get('#username').clear().type(user.username)
+      cy.get('#password').clear().type(user.password, { log: false })
+      cy.get('button[type="submit"]').click()
+    })
+  } else {
+    cy.get('#username').clear().type(username)
+    cy.get('#password').clear().type(password, { log: false })
+    cy.get('button[type="submit"]').click()
+  }
+})
+
+/*
+ * loginWithRole - Login based on user role
+ * 
+ * Loads credentials from fixture based on role name.
+ * Single command handles all user types.
+ * 
+ * Parameters:
+ *   role - User role: 'validUser', 'adminUser', 'invalidUser', etc.
+ *   site - Target site: 'herokuapp' (default)
+ * 
+ * Usage:
+ *   cy.loginWithRole('validUser')
+ *   cy.loginWithRole('adminUser')
+ *   cy.loginWithRole('invalidUser')
+ */
+Cypress.Commands.add('loginWithRole', (role = 'validUser', site = 'herokuapp') => {
+  cy.fixture('loginCredentials').then((data) => {
+    const user = data[role]
+    const selectors = data.loginPage.selectors[site]
+    const url = data.loginPage.urls[site]
+    
+    if (!user) {
+      throw new Error('Role "' + role + '" not found in loginCredentials.json')
+    }
+    
+    cy.log('Logging in as: ' + role)
+    cy.visit(url)
+    
+    cy.get(selectors.usernameInput).clear().type(user.username)
+    cy.get(selectors.passwordInput).clear().type(user.password, { log: false })
+    cy.get(selectors.loginButton).click()
+    
+    // Return user data for assertions in tests
+    cy.wrap(user).as('currentUser')
+  })
+})
+
+/*
+ * verifyLoginOutcome - Verify login result based on expected outcome
+ * 
+ * Parameters:
+ *   shouldSucceed - true = expect success, false = expect error
+ *   site - Target site: 'herokuapp' (default)
+ */
+Cypress.Commands.add('verifyLoginOutcome', (shouldSucceed = true, site = 'herokuapp') => {
+  cy.fixture('loginCredentials').then((data) => {
+    const selectors = data.loginPage.selectors[site]
+    
+    if (shouldSucceed) {
+      cy.url().should('include', '/secure')
+      cy.get(selectors.successMessage).should('be.visible')
+      cy.log('Login successful - verified')
+    } else {
+      cy.get(selectors.errorMessage).should('be.visible')
+      cy.log('Login failed as expected - verified')
+    }
+  })
+})
+
+/*
+ * logoutFromHerokuApp - Logout from the-internet.herokuapp.com
+ */
+Cypress.Commands.add('logoutFromHerokuApp', () => {
+  cy.get('a[href="/logout"]').click()
+  cy.url().should('include', '/login')
+  cy.log('Logged out successfully')
+})
+
+/*
+ * loginViaAPI - Fast login using API (bypass UI)
+ * 
+ * For tests that are not testing login itself,
+ * API login is faster and more reliable.
+ * 
+ * Parameters:
+ *   userType - User type from apiUsers fixture
+ */
+Cypress.Commands.add('loginViaAPI', (userType = 'valid') => {
+  cy.fixture('loginCredentials').then((data) => {
+    const user = data.apiUsers.reqres[userType]
+    
+    cy.request({
+      method: 'POST',
+      url: 'https://reqres.in/api/login',
+      body: {
+        email: user.email,
+        password: user.password
+      },
+      failOnStatusCode: false
+    }).then((response) => {
+      if (user.expectedToken) {
+        expect(response.status).to.eq(200)
+        expect(response.body).to.have.property('token')
+        
+        // Store token for subsequent API calls
+        Cypress.env('AUTH_TOKEN', response.body.token)
+        cy.log('API login successful - Token stored')
+      } else {
+        expect(response.status).to.eq(400)
+        cy.log('API login failed as expected')
+      }
+    })
+  })
+})
+
+/*
+ * loginWithRetry - Login with retry mechanism
+ * 
+ * Retries login if it fails (useful for flaky environments)
+ * 
+ * Parameters:
+ *   username - Username
+ *   password - Password
+ *   maxRetries - Number of retry attempts (default: 3)
+ */
+Cypress.Commands.add('loginWithRetry', (username, password, maxRetries = 3) => {
+  const attemptLogin = (attempt) => {
+    cy.log('Login attempt ' + attempt + ' of ' + maxRetries)
+    
+    cy.visit('https://the-internet.herokuapp.com/login')
+    cy.get('#username').clear().type(username)
+    cy.get('#password').clear().type(password, { log: false })
+    cy.get('button[type="submit"]').click()
+    
+    // Check result
+    cy.get('body').then(($body) => {
+      if ($body.find('#flash.success').length > 0) {
+        cy.log('Login successful on attempt ' + attempt)
+      } else if (attempt < maxRetries) {
+        cy.log('Login failed, retrying...')
+        attemptLogin(attempt + 1)
+      } else {
+        throw new Error('Login failed after ' + maxRetries + ' attempts')
+      }
+    })
+  }
+  
+  attemptLogin(1)
+})
+
+/*
+ * sessionLogin - Login using session preservation
+ * 
+ * Caches the login state to avoid repeated logins.
+ * Much faster for test suites with many tests.
+ * 
+ * Parameters:
+ *   userType - User type to login as
+ */
+Cypress.Commands.add('sessionLogin', (userType = 'validUser') => {
+  cy.session(userType, () => {
+    cy.fixture('loginCredentials').then((data) => {
+      const user = data[userType]
+      cy.visit('https://the-internet.herokuapp.com/login')
+      cy.get('#username').type(user.username)
+      cy.get('#password').type(user.password, { log: false })
+      cy.get('button[type="submit"]').click()
+      cy.url().should('include', '/secure')
+    })
+  })
+})
